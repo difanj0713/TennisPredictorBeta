@@ -11,11 +11,10 @@ def selectUsefulAttributes():
     for file in os.listdir(directory):
         if file.endswith('.csv'):
             df = pd.read_csv(os.path.join(directory, file))
-            selected_columns = ['surface', 'draw_size', 'tourney_level', 'tourney_date', 'winner_id', 'winner_name',
-                                'winner_hand', 'winner_ht', 'winner_age', 'loser_id', 'loser_name', 'loser_hand',
-                                'loser_ht',
-                                'loser_age', 'score', 'round', 'winner_rank', 'winner_rank_points', 'loser_rank',
-                                'loser_rank_points']
+            selected_columns = ['surface', 'draw_size', 'round', 'tourney_level', 'tourney_date', 
+                                'winner_id', 'winner_name', 'winner_hand', 'winner_ht', 'winner_age', 'winner_rank', 'winner_rank_points', 
+                                'loser_id', 'loser_name', 'loser_hand', 'loser_ht', 'loser_age', 'loser_rank', 'loser_rank_points',
+                                'score']
             df_selected = df.loc[:, selected_columns]
             df_list.append(df)
     fileName = 'atp_matches_2016-2022.csv'
@@ -120,10 +119,30 @@ def Normalization():
     df['winner_rank'] = 1 / df['winner_rank']
     df['loser_rank'] = 1 / df['loser_rank']
     
-    # fill nan with 0
-    df.fillna(0, inplace=True)
-    newfileName = 'cleaned.csv'
-    df.to_csv(newfileName, index=False)
+    newFileName = 'cleaned.csv'
+    df.to_csv(newFileName, index=False)
+
+    # For each record in df, create two records from both the winner's and the loser's perspectives
+    df_winner = df.copy()
+    column_mapping_winner = {'winner_id': 'player_id', 'winner_name': 'player_name', 'winner_hand': 'player_hand', 'winner_ht': 'player_ht', 
+                            'winner_age': 'player_age', 'winner_rank': 'player_rank', 'winner_rank_points': 'player_rank_points', 
+                            'loser_id': 'opponent_id', 'loser_name': 'opponent_name', 'loser_hand': 'opponent_hand', 'loser_ht': 'opponent_ht',
+                            'loser_age': 'opponent_age', 'loser_rank': 'opponent_rank', 'loser_rank_points': 'opponent_rank_points'}
+    df_winner.rename(columns=column_mapping_winner, inplace=True)
+
+    df_loser = df.copy()
+    column_mapping_loser = {'winner_id': 'opponent_id', 'winner_name': 'opponent_name', 'winner_hand': 'opponent_hand', 'winner_ht': 'opponent_ht', 
+                            'winner_age': 'opponent_age', 'winner_rank': 'opponent_rank', 'winner_rank_points': 'opponent_rank_points', 
+                            'loser_id': 'player_id', 'loser_name': 'player_name', 'loser_hand': 'player_hand', 'loser_ht': 'player_ht',
+                            'loser_age': 'player_age', 'loser_rank': 'player_rank', 'loser_rank_points': 'player_rank_points'}
+    df_loser.rename(columns=column_mapping_loser, inplace=True)
+    df_loser['set_score_diff'] = -df_loser['set_score_diff']
+    df_loser['game_score_diff'] = -df_loser['game_score_diff']
+
+    df_new = pd.concat([df_winner, df_loser])
+
+    newFileName_2 = 'cleaned_2.csv'
+    df_new.to_csv(newFileName_2, index=False)
 
 if __name__ == "__main__":
     Normalization()
