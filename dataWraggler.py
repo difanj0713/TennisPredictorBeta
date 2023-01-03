@@ -11,9 +11,11 @@ def selectUsefulAttributes():
     for file in os.listdir(directory):
         if file.endswith('.csv'):
             df = pd.read_csv(os.path.join(directory, file))
-            selected_columns = ['surface', 'draw_size', 'round', 'tourney_level', 'tourney_date', 
-                                'winner_id', 'winner_name', 'winner_hand', 'winner_ht', 'winner_age', 'winner_rank', 'winner_rank_points', 
-                                'loser_id', 'loser_name', 'loser_hand', 'loser_ht', 'loser_age', 'loser_rank', 'loser_rank_points',
+            selected_columns = ['surface', 'draw_size', 'round', 'tourney_level', 'tourney_date',
+                                'winner_id', 'winner_name', 'winner_hand', 'winner_ht', 'winner_age', 'winner_rank',
+                                'winner_rank_points',
+                                'loser_id', 'loser_name', 'loser_hand', 'loser_ht', 'loser_age', 'loser_rank',
+                                'loser_rank_points',
                                 'score']
             df_selected = df.loc[:, selected_columns]
             df_list.append(df)
@@ -62,6 +64,7 @@ def scoreRegexTransformer(score):
 
     return final_set_score, final_set_score_diff, final_set_score_sum, final_game_score, final_game_score_diff, final_game_score_sum
 
+
 def Normalization():
     fileName = 'atp_matches_2016-2022.csv'
     df = pd.read_csv(fileName)
@@ -92,49 +95,59 @@ def Normalization():
     game_score_diffs = []
     game_score_sums = []
     for score in df['score']:
-        final_set_score, final_set_score_diff, final_set_score_sum, final_game_score, final_game_score_diff, final_game_score_sum = scoreRegexTransformer(score)
+        final_set_score, final_set_score_diff, final_set_score_sum, final_game_score, final_game_score_diff, final_game_score_sum = scoreRegexTransformer(
+            score)
         set_scores.append(final_set_score)
         set_score_diffs.append(final_set_score_diff)
         set_score_sums.append(final_set_score_sum)
         game_scores.append(final_game_score)
         game_score_diffs.append(final_game_score_diff)
         game_score_sums.append(final_game_score_sum)
-    df = df.assign(set_score=set_scores, 
+    df = df.assign(set_score=set_scores,
                    set_score_diff=set_score_diffs,
                    set_score_sum=set_score_sums,
                    game_score=game_scores,
                    game_score_diff=game_score_diffs,
                    game_score_sum=game_score_sums)
-    
-    # Take the log2 of the values in the 'draw_size' and 'round' column 
+
+    # Take the log2 of the values in the 'draw_size' and 'round' column
     df[['draw_size']] = np.log2(df[['draw_size']])
-    
+
     # Replace NaN values in multiple columns with the mean of each column
     df.fillna(df.mean(), inplace=True)
 
     # Normalize winner_ht, loser_ht, winner_age, loser_age, winner_rank_points, loser_rank_points by z-score; winner_rank, loser_rank like Zipf's law
     df[['winner_ht', 'loser_ht', 'winner_age', 'loser_age', 'winner_rank_points', 'loser_rank_points']] = \
-    df[['winner_ht', 'loser_ht', 'winner_age', 'loser_age', 'winner_rank_points', 'loser_rank_points']].apply(zscore)
-    #.apply(lambda x: (x - x.min() + 1) / (x.max() - x.min()))
+        df[['winner_ht', 'loser_ht', 'winner_age', 'loser_age', 'winner_rank_points', 'loser_rank_points']].apply(
+            zscore)
+    # .apply(lambda x: (x - x.min() + 1) / (x.max() - x.min()))
     df['winner_rank'] = 1 / df['winner_rank']
     df['loser_rank'] = 1 / df['loser_rank']
-    
+
     newFileName = 'cleaned.csv'
     df.to_csv(newFileName, index=False)
 
     # For each record in df, create two records from both the winner's and the loser's perspectives
     df_winner = df.copy()
-    column_mapping_winner = {'winner_id': 'player_id', 'winner_name': 'player_name', 'winner_hand': 'player_hand', 'winner_ht': 'player_ht', 
-                            'winner_age': 'player_age', 'winner_rank': 'player_rank', 'winner_rank_points': 'player_rank_points', 
-                            'loser_id': 'opponent_id', 'loser_name': 'opponent_name', 'loser_hand': 'opponent_hand', 'loser_ht': 'opponent_ht',
-                            'loser_age': 'opponent_age', 'loser_rank': 'opponent_rank', 'loser_rank_points': 'opponent_rank_points'}
+    column_mapping_winner = {'winner_id': 'player_id', 'winner_name': 'player_name', 'winner_hand': 'player_hand',
+                             'winner_ht': 'player_ht',
+                             'winner_age': 'player_age', 'winner_rank': 'player_rank',
+                             'winner_rank_points': 'player_rank_points',
+                             'loser_id': 'opponent_id', 'loser_name': 'opponent_name', 'loser_hand': 'opponent_hand',
+                             'loser_ht': 'opponent_ht',
+                             'loser_age': 'opponent_age', 'loser_rank': 'opponent_rank',
+                             'loser_rank_points': 'opponent_rank_points'}
     df_winner.rename(columns=column_mapping_winner, inplace=True)
 
     df_loser = df.copy()
-    column_mapping_loser = {'winner_id': 'opponent_id', 'winner_name': 'opponent_name', 'winner_hand': 'opponent_hand', 'winner_ht': 'opponent_ht', 
-                            'winner_age': 'opponent_age', 'winner_rank': 'opponent_rank', 'winner_rank_points': 'opponent_rank_points', 
-                            'loser_id': 'player_id', 'loser_name': 'player_name', 'loser_hand': 'player_hand', 'loser_ht': 'player_ht',
-                            'loser_age': 'player_age', 'loser_rank': 'player_rank', 'loser_rank_points': 'player_rank_points'}
+    column_mapping_loser = {'winner_id': 'opponent_id', 'winner_name': 'opponent_name', 'winner_hand': 'opponent_hand',
+                            'winner_ht': 'opponent_ht',
+                            'winner_age': 'opponent_age', 'winner_rank': 'opponent_rank',
+                            'winner_rank_points': 'opponent_rank_points',
+                            'loser_id': 'player_id', 'loser_name': 'player_name', 'loser_hand': 'player_hand',
+                            'loser_ht': 'player_ht',
+                            'loser_age': 'player_age', 'loser_rank': 'player_rank',
+                            'loser_rank_points': 'player_rank_points'}
     df_loser.rename(columns=column_mapping_loser, inplace=True)
     df_loser['set_score_diff'] = -df_loser['set_score_diff']
     df_loser['game_score_diff'] = -df_loser['game_score_diff']
