@@ -47,19 +47,21 @@ def scoreRegexTransformer(score):
         for set_score in sets:
             match = re.search(r'(\d+)-(\d+)', set_score)
             if match:
-                if int(match.group(1)) > int(match.group(2)):
-                    set_scores[0] += 1
-                else:
-                    set_scores[1] += 1
+                set_scores[0] += int(int(match.group(1)) > int(match.group(2)))
+                set_scores[1] += int(int(match.group(1)) < int(match.group(2)))
                 game_scores[0] += int(match.group(1))
                 game_scores[1] += int(match.group(2))
     except Exception as e:
         logging.error(e)
 
     final_set_score = f'{set_scores[0]}:{set_scores[1]}'
+    final_set_score_diff = set_scores[0] - set_scores[1]
+    final_set_score_sum = set_scores[0] + set_scores[1]
     final_game_score = f'{game_scores[0]}:{game_scores[1]}'
+    final_game_score_diff = game_scores[0] - game_scores[1]
+    final_game_score_sum = game_scores[0] + game_scores[1]
 
-    return final_set_score, final_game_score
+    return final_set_score, final_set_score_diff, final_set_score_sum, final_game_score, final_game_score_diff, final_game_score_sum
 
 def Normalization():
     fileName = 'atp_matches_2016-2022.csv'
@@ -80,22 +82,44 @@ def Normalization():
     df['loser_hand'] = df['loser_hand'].replace(replacements_hands)
     df['loser_hand'] = df['loser_hand'].replace(r'^(?!L|R).*$', 3, regex=True)
 
-    # Change 6-4 6-3 format scores into set scores and game scores
-    set_scores = []
-    game_scores = []
-    for score in df['score']:
-        final_set_score, final_game_score = scoreRegexTransformer(score)
-        set_scores.append(final_set_score)
-        game_scores.append(final_game_score)
-    df = df.assign(set_score=set_scores, game_score=game_scores)
+    replacements_round = {'R128': 7, 'R64': 6, 'R32': 5, 'R16': 4, 'QF': 3, 'SF': 2, 'F': 1, 'RR': 4, 'BR': 2}
+    df['round'] = df['round'].replace(replacements_round)
 
-    # Normalize draw_size, winner_ht, loser_ht, winner_age, loser_age, winner_rank_points, loser_rank_points by z-score; winner_rank, loser_rank like Zipf's law
-    df[['draw_size', 'winner_ht', 'loser_ht', 'winner_age', 'loser_age', 'winner_rank_points', 'loser_rank_points']] = \
-    df[['draw_size', 'winner_ht', 'loser_ht', 'winner_age', 'loser_age', 'winner_rank_points',
-        'loser_rank_points']].apply(lambda x: (x - x.min() + 1) / (x.max() - x.min()))
+    # Change the 'score' column with 6-4 6-3 format scores into set scores and game scores
+    set_scores = []
+    set_score_diffs = []
+    set_score_sums = []
+    game_scores = []
+    game_score_diffs = []
+    game_score_sums = []
+    for score in df['score']:
+        final_set_score, final_set_score_diff, final_set_score_sum, final_game_score, final_game_score_diff, final_game_score_sum = scoreRegexTransformer(score)
+        set_scores.append(final_set_score)
+        set_score_diffs.append(final_set_score_diff)
+        set_score_sums.append(final_set_score_sum)
+        game_scores.append(final_game_score)
+        game_score_diffs.append(final_game_score_diff)
+        game_score_sums.append(final_game_score_sum)
+    df = df.assign(set_score=set_scores, 
+                   set_score_diff=set_score_diffs,
+                   set_score_sum=set_score_sums,
+                   game_score=game_scores,
+                   game_score_diff=game_score_diffs,
+                   game_score_sum=game_score_sums)
+    
+    # Take the log2 of the values in the 'draw_size' and 'round' column 
+    df[['draw_size']] = np.log2(df[['draw_size']])
+    
+    # Replace NaN values in multiple columns with the mean of each column
+    df.fillna(df.mean(), inplace=True)
+
+    # Normalize winner_ht, loser_ht, winner_age, loser_age, winner_rank_points, loser_rank_points by z-score; winner_rank, loser_rank like Zipf's law
+    df[['winner_ht', 'loser_ht', 'winner_age', 'loser_age', 'winner_rank_points', 'loser_rank_points']] = \
+    df[['winner_ht', 'loser_ht', 'winner_age', 'loser_age', 'winner_rank_points', 'loser_rank_points']].apply(zscore)
+    #.apply(lambda x: (x - x.min() + 1) / (x.max() - x.min()))
     df['winner_rank'] = 1 / df['winner_rank']
     df['loser_rank'] = 1 / df['loser_rank']
-
+    
     # fill nan with 0
     df.fillna(0, inplace=True)
     newfileName = 'cleaned.csv'
