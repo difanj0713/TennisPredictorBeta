@@ -93,16 +93,16 @@ def Normalization():
     game_score_sums = []
     for score in df['score']:
         final_set_score, final_set_score_diff, final_set_score_sum, final_game_score, final_game_score_diff, final_game_score_sum = scoreRegexTransformer(score)
-        set_scores.append(final_set_score)
+        #set_scores.append(final_set_score)
         set_score_diffs.append(final_set_score_diff)
         set_score_sums.append(final_set_score_sum)
-        game_scores.append(final_game_score)
+        #game_scores.append(final_game_score)
         game_score_diffs.append(final_game_score_diff)
         game_score_sums.append(final_game_score_sum)
-    df = df.assign(set_score=set_scores, 
+    df = df.assign(#set_score=set_scores, 
                    set_score_diff=set_score_diffs,
                    set_score_sum=set_score_sums,
-                   game_score=game_scores,
+                   #game_score=game_scores,
                    game_score_diff=game_score_diffs,
                    game_score_sum=game_score_sums)
     
@@ -139,7 +139,7 @@ def Normalization():
     df_loser['set_score_diff'] = -df_loser['set_score_diff']
     df_loser['game_score_diff'] = -df_loser['game_score_diff']
 
-    df_new = pd.concat([df_winner, df_loser])
+    df_new = pd.concat([df_winner, df_loser]).sort_index(kind='mergesort').reset_index().drop(columns=['index'])
 
     newFileName_2 = 'cleaned_2.csv'
     df_new.to_csv(newFileName_2, index=False)
